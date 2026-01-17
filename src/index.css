@@ -2,13 +2,20 @@
   --bg-color: #0d0d0d;
   --text-primary: #ffffff;
   --text-secondary: #a1a1aa;
-  --accent-primary: #6366f1; /* Indigo 500 */
+  --accent-primary: #6366f1;
+  /* Indigo 500 */
   --accent-glow: rgba(99, 102, 241, 0.5);
   --glass-bg: rgba(255, 255, 255, 0.05);
   --glass-border: rgba(255, 255, 255, 0.1);
   --success: #10b981;
   --error: #ef4444;
   --font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 body {
@@ -25,7 +32,8 @@ body {
 
 #root {
   width: 100%;
-  max-width: 480px; /* Mobile width cap */
+  max-width: 480px;
+  /* Mobile width cap */
   min-height: 100vh;
   position: relative;
   overflow-x: hidden;
@@ -107,8 +115,15 @@ p.subtitle {
 
 /* Animations */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .animate-fade-in {
@@ -121,7 +136,7 @@ p.subtitle {
   border-radius: 24px;
   position: relative;
   background: black;
-  box-shadow: 0 20px 50px -10px rgba(0,0,0,0.5);
+  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.5);
 }
 
 /* Customizing html5-qrcode elements */
@@ -159,10 +174,23 @@ p.subtitle {
 }
 
 @keyframes scan {
-  0% { top: 10%; opacity: 0; }
-  10% { opacity: 1; }
-  90% { opacity: 1; }
-  100% { top: 90%; opacity: 0; }
+  0% {
+    top: 10%;
+    opacity: 0;
+  }
+
+  10% {
+    opacity: 1;
+  }
+
+  90% {
+    opacity: 1;
+  }
+
+  100% {
+    top: 90%;
+    opacity: 0;
+  }
 }
 
 .result-area {
