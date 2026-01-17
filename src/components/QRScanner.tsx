@@ -189,35 +189,34 @@ const QRScanner = ({ onScanSuccess, onScanError }: QRScannerProps) => {
                     <>
                         <div className="scan-line"></div>
 
-                        {/* Switch Camera Button - Top Right */}
-                        {devices.length > 1 && (
-                            <button
-                                onClick={switchCamera}
-                                style={{
-                                    position: 'absolute',
-                                    top: '16px',
-                                    right: '16px',
-                                    width: '40px',
-                                    height: '40px',
-                                    borderRadius: '50%',
-                                    background: 'rgba(0,0,0,0.5)',
-                                    border: '1px solid rgba(255,255,255,0.2)',
-                                    color: 'white',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    cursor: 'pointer',
-                                    zIndex: 20
-                                }}
-                                title="Switch Camera"
-                            >
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M20 10c0-6-8-6-8-6s-8 0-8 6h16z"></path>
-                                    <path d="M4 14c0 6 8 6 8 6s8 0 8-6H4z"></path>
-                                    <path d="M12 12v.01"></path>
-                                </svg>
-                            </button>
-                        )}
+                        {/* Switch Camera Button - Top Right - Always Visible for Clarity */}
+                        <button
+                            onClick={devices.length > 1 ? switchCamera : () => alert(`Only 1 camera detected: ${devices[0]?.label || 'Unknown'}`)}
+                            style={{
+                                position: 'absolute',
+                                top: '16px',
+                                right: '16px',
+                                width: '40px',
+                                height: '40px',
+                                borderRadius: '50%',
+                                background: 'rgba(0,0,0,0.5)',
+                                border: '1px solid rgba(255,255,255,0.2)',
+                                color: 'white',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                zIndex: 20,
+                                opacity: devices.length > 1 ? 1 : 0.5
+                            }}
+                            title={devices.length > 1 ? "Switch Camera" : "Only 1 Camera detected"}
+                        >
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M20 10c0-6-8-6-8-6s-8 0-8 6h16z"></path>
+                                <path d="M4 14c0 6 8 6 8 6s8 0 8-6H4z"></path>
+                                <path d="M12 12v.01"></path>
+                            </svg>
+                        </button>
 
                         <button
                             onClick={handleStop}
