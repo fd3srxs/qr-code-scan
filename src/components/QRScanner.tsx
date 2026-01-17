@@ -11,77 +11,99 @@ const QRScanner = ({ onScanSuccess, onScanError }: QRScannerProps) => {
     const [loading, setLoading] = useState(true);
     const [permissionError, setPermissionError] = useState(false);
     const [errorMessage, setErrorMessage] = useState("");
+    const [devices, setDevices] = useState<any[]>([]);
+    const [activeDeviceId, setActiveDeviceId] = useState<string | null>(null);
+
     const scannerRef = useRef<Html5Qrcode | null>(null);
     const readerId = "reader";
 
     useEffect(() => {
-        // Auto-start the scanner when component mounts
-        startScanning();
+        // Initial setup
+        initScanner();
 
-        // Cleanup on unmount
         return () => {
-            if (scannerRef.current) {
-                try {
-                    if (scannerRef.current.isScanning) {
-                        scannerRef.current.stop().catch(console.error);
-                    }
-                    scannerRef.current.clear();
-                } catch (e) {
-                    console.error("Cleanup error", e);
-                }
-            }
+            cleanup();
         };
     }, []);
 
-    const startScanning = async () => {
+    const cleanup = () => {
+        if (scannerRef.current) {
+            try {
+                if (scannerRef.current.isScanning) {
+                    scannerRef.current.stop().catch(console.error);
+                }
+                scannerRef.current.clear();
+            } catch (e) {
+                console.error("Cleanup error", e);
+            }
+        }
+    };
+
+    const initScanner = async () => {
         setLoading(true);
         setPermissionError(false);
-        setErrorMessage("");
-        // CRITICAL: We must render the div and make it visible BEFORE initializing the library
-        // The library needs to measure the element dimensions.
-        setIsScanning(true);
 
-        // A small delay to ensure React has flushed the DOM update and the div is visible
+        // Ensure container is 'visible' for library measurement, creating the instance early
+        setIsScanning(true);
         await new Promise(r => setTimeout(r, 100));
 
         try {
-            // Must look for cameras
-            const devices = await Html5Qrcode.getCameras().catch(err => {
+            if (!scannerRef.current) {
+                scannerRef.current = new Html5Qrcode(readerId);
+            }
+
+            const cameras = await Html5Qrcode.getCameras().catch(err => {
                 throw new Error("Could not access camera device. " + err);
             });
 
-            if (devices && devices.length) {
-                // Use back camera by default
-                const cameraId = devices.find(d => d.label.toLowerCase().includes('back'))?.id || devices[0].id;
+            if (cameras && cameras.length > 0) {
+                setDevices(cameras);
+                // Default to back camera
+                const backCamera = cameras.find(d => d.label.toLowerCase().includes('back'));
+                const startId = backCamera ? backCamera.id : cameras[0].id;
 
-                if (!scannerRef.current) {
-                    scannerRef.current = new Html5Qrcode(readerId);
-                }
-
-                await scannerRef.current.start(
-                    cameraId,
-                    {
-                        fps: 10,
-                        qrbox: { width: 250, height: 250 },
-                        aspectRatio: 1.0
-                    },
-                    (decodedText) => {
-                        handleStop();
-                        onScanSuccess(decodedText);
-                    },
-                    (errorMessage) => {
-                        if (onScanError) onScanError(errorMessage);
-                    }
-                );
-                setLoading(false);
+                await startCamera(startId);
             } else {
                 throw new Error("No camera devices found.");
             }
         } catch (err: any) {
-            console.error("Error starting scanner", err);
+            console.error("Init Error", err);
             setPermissionError(true);
             setErrorMessage(err?.message || err?.toString() || "Unknown error");
-            handleStop();
+            setLoading(false);
+            setIsScanning(false);
+        }
+    };
+
+    const startCamera = async (cameraId: string) => {
+        if (!scannerRef.current) return;
+
+        setLoading(true);
+        setActiveDeviceId(cameraId);
+
+        try {
+            await scannerRef.current.start(
+                cameraId,
+                {
+                    fps: 10,
+                    qrbox: { width: 250, height: 250 },
+                    aspectRatio: 1.0
+                },
+                (decodedText) => {
+                    handleStop();
+                    onScanSuccess(decodedText);
+                },
+                (errorMessage) => {
+                    if (onScanError) onScanError(errorMessage);
+                }
+            );
+            setLoading(false);
+            setIsScanning(true);
+        } catch (err: any) {
+            console.error("Start Error", err);
+            setPermissionError(true);
+            setErrorMessage(err?.message || "Failed to start camera");
+            setLoading(false);
         }
     };
 
@@ -100,6 +122,24 @@ const QRScanner = ({ onScanSuccess, onScanError }: QRScannerProps) => {
         setLoading(false);
     };
 
+    const switchCamera = async () => {
+        if (devices.length < 2 || !activeDeviceId || !scannerRef.current) return;
+
+        const currentIdx = devices.findIndex(d => d.id === activeDeviceId);
+        const nextIdx = (currentIdx + 1) % devices.length;
+        const nextId = devices[nextIdx].id;
+
+        setLoading(true);
+        try {
+            await scannerRef.current.stop();
+            await startCamera(nextId);
+        } catch (err) {
+            console.error("Switch Error", err);
+            // If switch fails, try to just restart whatever we have or show error
+            setLoading(false);
+        }
+    };
+
     return (
         <div className="scanner-wrapper animate-fade-in">
             <div className="glass-card" style={{ padding: '0', overflow: 'hidden', position: 'relative', minHeight: '320px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
@@ -113,7 +153,7 @@ const QRScanner = ({ onScanSuccess, onScanError }: QRScannerProps) => {
                         <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.85rem', wordBreak: 'break-word' }}>
                             {errorMessage}
                         </p>
-                        <button onClick={startScanning} className="btn-secondary">
+                        <button onClick={initScanner} className="btn-secondary">
                             Retry Camera
                         </button>
                     </div>
@@ -125,31 +165,60 @@ const QRScanner = ({ onScanSuccess, onScanError }: QRScannerProps) => {
                         position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         zIndex: 10,
+                        background: 'rgba(0,0,0,0.5)',
+                        backdropFilter: 'blur(2px)'
                     }}>
-                        <div style={{ color: 'var(--text-secondary)' }}>Initialize Camera...</div>
+                        <div style={{ color: 'var(--text-primary)', fontWeight: '500' }}>
+                            {activeDeviceId ? 'Starting Camera...' : 'Initializing...'}
+                        </div>
                     </div>
                 )}
 
-                {/* 
-            The div where the scanner plays. 
-            CRITICAL: 'display' must NOT be none when start() is called.
-            We use the isScanning state to toggle it, but startScanning() sets isScanning=true first.
-        */}
+                {/* Scanner Div */}
                 <div
                     id={readerId}
                     style={{
                         width: '100%',
                         minHeight: '300px',
-                        // We keep it 'block' if we intend to scan (isScanning=true)
-                        // If permission error happens, we hide it to show error message cleanly on top? 
-                        // We can hide it or keep it.
                         display: isScanning && !permissionError ? 'block' : 'none'
                     }}
                 ></div>
 
+                {/* Controls Overlay */}
                 {isScanning && !loading && !permissionError && (
                     <>
                         <div className="scan-line"></div>
+
+                        {/* Switch Camera Button - Top Right */}
+                        {devices.length > 1 && (
+                            <button
+                                onClick={switchCamera}
+                                style={{
+                                    position: 'absolute',
+                                    top: '16px',
+                                    right: '16px',
+                                    width: '40px',
+                                    height: '40px',
+                                    borderRadius: '50%',
+                                    background: 'rgba(0,0,0,0.5)',
+                                    border: '1px solid rgba(255,255,255,0.2)',
+                                    color: 'white',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    cursor: 'pointer',
+                                    zIndex: 20
+                                }}
+                                title="Switch Camera"
+                            >
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M20 10c0-6-8-6-8-6s-8 0-8 6h16z"></path>
+                                    <path d="M4 14c0 6 8 6 8 6s8 0 8-6H4z"></path>
+                                    <path d="M12 12v.01"></path>
+                                </svg>
+                            </button>
+                        )}
+
                         <button
                             onClick={handleStop}
                             className="btn-secondary"
